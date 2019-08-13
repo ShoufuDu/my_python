@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args":["-wd","-s","C:\\mywork\\tasks\\NSW\\EntityGames\\Win","-d","C:\\mywork\\tasks\\NSW\\EntityGames\\maths"]
+            // "args":["-wd","-s","C:\\mywork\\tasks\\NSW\\EntityGames\\Win","-d","C:\\mywork\\tasks\\NSW\\EntityGames\\maths"]
         }
     ]
 }
