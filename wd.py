@@ -1,5 +1,3 @@
-import argparse
-import getopt
 import os
 import re
 import shutil
