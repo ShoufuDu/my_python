@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args":["-p","-s","/Users/dusf/Downloads/csharp/myprj/mypy/a","-d","d:\\xx\\y"]
+            "args":["-wd","-s","C:\\mywork\\tasks\\NSW\\EntityGames\\Win","-d","C:\\mywork\\tasks\\NSW\\EntityGames\\maths"]
         }
     ]
 }

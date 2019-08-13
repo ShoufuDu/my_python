@@ -1,32 +1,32 @@
-import sys
-import os
+import argparse
 import getopt
-import shutil
+import os
 import re
+import shutil
+import subprocess
+import sys
+import time
 
 const_short_opt="hps:d:"
 const_long_opt=["help","pid","src=","dst="]
 
 # arguments for all process procedure
 process_pid=False
-process_pid_src=None
-process_pid_dst=None
+process_src=None
+process_dst=None
 
 class Args:
     def __init__(self):
         self.process_pid=False
-        self.process_pid_src=None
-        self.process_pid_dst=None
-
-class Usage(Exception):
-    def __init__(self,msg):
-        self.msg = msg
-
+        self.process_src=None
+        self.process_dst=None
+        self.process_wd=False
+        
 def showUsage():
-    print "-h|--help for help"
-    print "-p|--pid"
-    print "-s src -d dst"
-    print "exp: -p -s c:\\src -d d:\\"
+    print ("-h|--help for help")
+    print ("-p|--pid")
+    print ("-s src -d dst")
+    print ("exp: -p -s c:\\src -d d:\\")
     return 0
 
 def parseCmd(opts):
@@ -39,15 +39,18 @@ def parseCmd(opts):
 
         # parse process pid arguments
         if o in('-p','--pid'):
-            args.process_pid=True
+            args.pid=True
+
+        if o in('-wd','--wizardswand'):
+            args.process_wd=True
 
         if o in('-s','--src'):
-            if args.process_pid:
-                args.process_pid_src=p
+            if args.pid or args.process_wd:
+                args.src=p
 
         if o in('-d','--dst'):
-            if args.process_pid:
-                args.process_pid_dst=p
+            if args.pid or args.process_wd:
+                args.dst=p
 
         # parse new process arguments...
 
@@ -55,9 +58,21 @@ def parseCmd(opts):
 
 def walkDir(top,**args):
     for root,dirs,files in os.walk(top,True):
-        # for d in dirs:
-        for f in files:
-            args['hook_f'](root,f,args['hook_f_arg'])
+        # exclude dirs
+        # dirs[:] = [os.path.join(root, d) for d in dirs]
+        if 'excludes' in args:
+            dirs[:] = [d for d in dirs if not re.endswith(tuple(args['excludes']))]
+
+        # exclude/include files
+        # files = [os.path.join(root, f) for f in files]
+        if 'excludes' in args:
+            files = [f for f in files if not f.endswith(tuple(args['excludes']))]
+        if 'includes' in args:
+            files = [f for f in files if f.endswith(tuple(args['includes']))]
+
+        for fname in files:
+            args['hook_f'](root,fname,args['hook_f_arg'])
+            # print(fname)
 
 #--------------------------------------------------------------------------------------
 #   name : process_pid_hook
@@ -89,48 +104,69 @@ def process_pid_proc(src,dst):
 #   file : the source file to be processed
 #   arg  : additional arguments needed
 #--------------------------------------------------------------------------------------
-def process_xxx_hook(root,file,arg):
+def process_wd_hook(root,file,arg):
+    winegPath = os.path.join(root,"GameCompiler.exe")
+    inputFile = os.path.join(root,file)
+
+    cmdline = winegPath,inputFile
+    subprocess.call(cmdline,shell=True)
+    outfile = os.path.join(root,"GameDef.dat.enc")
+
+    # time.sleep(1)
+
+    try:
+        if not os.path.exists(outfile):
+            exit(1)
+        
+        varation = re.sub(r"WW_(V\d+).agm",r"\1",file)
+
+        outDir = os.path.join(arg,varation)
+        if not os.path.exists(outDir):
+            os.mkdir(outDir)
+        
+        # #copy GameDef.dat.enc
+        dstFile = os.path.join(outDir,"GameDef.dat.enc")
+        shutil.copy(outfile,dstFile)
+        os.remove(outfile)
+        
+        #copy agm files
+        shutil.copy(inputFile,os.path.join(outDir,file))
+
+    except IOError as e:
+            print(e)
+
     return 0
 
-def process_xxx_proc(src,dst):
+def process_wd_proc(src,dst):
+    args={'includes':['.agm'],'hook_f':process_wd_hook,'hook_f_arg':dst}
+    walkDir(src,**args)
     return 0
 
 
 def processMain(args):
     # process pid
-    if args.process_pid:
-        return process_pid_proc(args.process_pid_src,
-                                args.process_pid_dst)
+    if args.pid:
+        return process_pid_proc(args.src,
+                                args.dst)
     # add new process ...
-    # if args.process_pid:
-    #     return process_pid_proc(args.process_pid_src,
-    #                             args.process_pid_dst)
-
+    if args.wizardswand:
+        return process_wd_proc(args.src,args.dst)
 #--------------------------------------------------------------------------------------
 # main
 #--------------------------------------------------------------------------------------
-def main(argv=None):
-    if(argv is None):
-        argv = sys.argv
-    try:
-        try:
-            opts,args = getopt.getopt(sys.argv[1:],const_short_opt,const_long_opt)
-        except getopt.error,msg:
-            raise Usage(msg)
+def main():
+    parser = argparse.ArgumentParser(description="mypython tool for game")
+    # group = parser.add_mutually_exclusive_group()
+    parser.add_argument("-p","--pid", help="process pid",action="store_true")
+    parser.add_argument("-s",'--src',help="source path")
+    parser.add_argument("-d",'--dst',help="destination path")
+    parser.add_argument("-wd","--wizardswand", help="process wizardswand agm files",action="store_true")
+    args = parser.parse_args()
 
-        args = parseCmd(opts)
-
-        processMain(args)
-
-        return 0
-
-    except Usage,err:
-        print >> sys.stderr,err.msg
-        print >> sys.stderr, "for help use --help"
-        return 2
+    processMain(args)
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
 
 
 def example_xopy():
@@ -156,5 +192,5 @@ def example_xopy():
             try:
                 shutil.copy(old_path,new_path)
             except IOError as e:
-                print e
+                print(e)
     return 1
